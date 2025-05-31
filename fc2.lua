@@ -449,8 +449,19 @@ wget.callbacks.write_to_warc = function(url, http_stat)
     error("No item name found.")
   end
   is_initial_url = false
+  if http_stat["statcode"] == 301
+    or http_stat["statcode"] == 302 then
+    local newurl = urlparse.absolute(url["url"], http_stat["newloc"])
+    if string.match(newurl, "^https?://error%.fc2%.com/")
+      or string.match(newurl, "^https?://[^/]+/error") then
+      retry_url = true
+      return false
+    end
+  end
   if http_stat["statcode"] ~= 200
-    and http_stat["statcode"] ~= 404 then
+    and http_stat["statcode"] ~= 404
+    and http_stat["statcode"] ~= 301
+    and http_stat["statcode"] ~= 302 then
     retry_url = true
     return false
   end
@@ -496,7 +507,10 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
     io.stdout:write("Server returned bad response. ")
     io.stdout:flush()
     tries = tries + 1
-    local maxtries = 8
+    local maxtries = 4
+    if status_code == 301 or status_code == 302 then
+      tries = maxtries + 1
+    end
     if tries > maxtries then
       io.stdout:write(" Skipping.\n")
       io.stdout:flush()
@@ -524,7 +538,11 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
 
   if status_code >= 300 and status_code <= 399 then
     local newloc = urlparse.absolute(url["url"], http_stat["newloc"])
-    if processed(newloc) or not allowed(newloc, url["url"]) then
+    if string.match(newloc, "^https?://error%.fc2%.com/")
+      or string.match(newloc, "^https?://[^/]+/error") then
+      error("Unexpected error redirect found.")
+    end
+    if not allowed(newloc, url["url"]) then
       tries = 0
       return wget.actions.EXIT
     end
