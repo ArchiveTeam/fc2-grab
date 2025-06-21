@@ -30,12 +30,36 @@ local ids = {}
 local retry_url = false
 local is_initial_url = true
 
-local item_patterns = {
-  ["^(https?://[^/]*%.fc2%.com/.*)$"]="url",
-  ["^(https?://fc2%.com/.*)$"]="url",
-  ["^(https?://[^/]*%.fc2web%.com/.*)$"]="url",
-  ["^(https?://fc2web%.com/.*)$"]="url"
+local item_patterns = {}
+local sites = {
+  "fc2%.com",
+  "fc2web%.com",
+  "sugoihp%.com",
+  "gooside%.com",
+  "k%-free%.net",
+  "easter%.ne%.jp",
+  "muvc%.net",
+  "muvc%.com",
+  "55street%.net",
+  "zero%-city%.com",
+  "ojiji%.net",
+  "k%-server%.org",
+  "zero%-yen%.com",
+  "h%.fc2%.com",
+  "iui%.fc2%.com",
+  "happy%-web%.fc2%.com",
+  "kt%.fc2%.com",
+  "finito%-web%.com",
+  "finito%.fc2%.com",
+  "ktplan%.net",
+  "ktplan%.fc2%.com",
+  "pimp%.fc2%.com"
 }
+for _, site in pairs(sites) do
+  item_patterns["^(https?://[^/]*%." .. site .. "/.*)$"] = "url"
+  item_patterns["^(https?://" .. site .. "/.*)$"] = "url"
+end
+
 
 abort_item = function(item)
   abortgrab = true
@@ -165,8 +189,14 @@ allowed = function(url, parenturl)
     return false
   end
 
-  if not string.match(url, "^https?://[^/]*fc2%.com/")
-    and not string.match(url, "^https?://[^/]*fc2web%.com/") then
+  local found = false
+  for _, site in pairs(sites) do
+    if string.match(url, "^https?://[^/]*" .. site .. "/") then
+      found = true
+      break
+    end
+  end
+  if not found then
     discover_item(discovered_outlinks, string.match(percent_encode_url(url), "^([^%s]+)"))
     return false
   end
@@ -368,6 +398,28 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
 
   check(string.match(url, "^(https?://[^/]+)") .. "/robots.txt")
 
+  if not string.match(url, "^https?://cgiserv01%.") then
+    for pattern, replaces in pairs({
+      ["^https?://([^%./]+)%.fc2web%.com(/.*)$"]={"//%1%.sugoihp%.com%2"},
+      ["^https?://([^%./]+)%.sugoihp%.com(/.*)$"]={"//%1%.fc2web%.com%2"},
+      ["^https?://([^%./]+)%.muvc%.com(/.*)$"]={"//%1%.muvc%.net%2"},
+      ["^https?://([^%./]+)%.muvc%.net(/.*)$"]={"//%1%.muvc%.com%2"},
+      ["^https?://finito%-web%.com/([^/]+)(/.*)$"]={"//%1%.finito%-web%.com%2", "//%1%.finito%.fc2%.com%2"},
+      ["^https?://www[0-9]*%.finito%-web%.com/([^/]+)(/.*)$"]={"//%1%.finito%-web%.com%2", "//%1%.finito%.fc2%.com%2"},
+      ["^https?://([^%./]+)%.finito%-web%.com(/.*)$"]={"//finito%-web%.com/%1%2", "//%1%.finito%.fc2%.com%2"},
+      ["^https?://([^%./]+)%.finito%.fc2%.com(/.*)$"]={"//finito%-web%.com/%1%2", "//%1%.finito%-web%.com%2"},
+      ["^https?://([^%./]+)%.ktplan%.net(/.*)$"]={"//%1%.ktplan%.fc2%.com%2"},
+      ["^https?://([^%./]+)%.ktplan%.fc2%.com(/.*)$"]={"//%1%.ktplan%.net%2"}
+    }) do
+      for _, replace in pairs(replaces) do
+        local newurl = string.gsub(url, pattern, replace)
+        if string.match(newurl, "^//") then
+          check(urlparse.absolute(url, newurl))
+        end
+      end
+    end
+  end
+
   if allowed(url)
     and status_code < 300
     and not string.match(url, "^https?://diary[0-9]*%.fc2%.com/user/[^/]+/img/")
@@ -412,12 +464,16 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
           check(newurl)
         end
       end
-    end 
+    end
+    local check_f = checknewurl
+    if not string.match(html, "<%s*[hH][tT][mM][lL]%s*>") then
+      check_f = check
+    end
     for newurl in string.gmatch(string.gsub(html, "&[qQ][uU][oO][tT];", '"'), '([^"]+)') do
-      checknewurl(newurl)
+      check_f(newurl)
     end
     for newurl in string.gmatch(string.gsub(html, "&#039;", "'"), "([^']+)") do
-      checknewurl(newurl)
+      check_f(newurl)
     end
     for newurl in string.gmatch(html, "[^%-]href='([^']+)'") do
       checknewshorturl(newurl)
@@ -431,7 +487,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
     html = string.gsub(html, "&gt;", ">")
     html = string.gsub(html, "&lt;", "<")
     for newurl in string.gmatch(html, ">%s*([^<%s]+)") do
-      checknewurl(newurl)
+      check_f(newurl)
     end
   end
 
@@ -452,7 +508,7 @@ wget.callbacks.write_to_warc = function(url, http_stat)
   if http_stat["statcode"] == 301
     or http_stat["statcode"] == 302 then
     local newurl = urlparse.absolute(url["url"], http_stat["newloc"])
-    if string.match(newurl, "^https?://error%.fc2%.com/")
+    if string.match(newurl, "^https?://error%.")
       or string.match(newurl, "^https?://[^/]+/error") then
       retry_url = true
       return false
@@ -538,7 +594,7 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
 
   if status_code >= 300 and status_code <= 399 then
     local newloc = urlparse.absolute(url["url"], http_stat["newloc"])
-    if string.match(newloc, "^https?://error%.fc2%.com/")
+    if string.match(newloc, "^https?://error%.")
       or string.match(newloc, "^https?://[^/]+/error") then
       error("Unexpected error redirect found.")
     end
