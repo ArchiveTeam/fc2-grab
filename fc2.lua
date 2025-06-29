@@ -475,6 +475,7 @@ wget.callbacks.write_to_warc = function(url, http_stat)
     or http_stat["statcode"] == 302 then
     local newurl = urlparse.absolute(url["url"], http_stat["newloc"])
     if newurl ~= "http://error.fc2.com/web/404.html"
+      and newurl ~= "http://error.fc2.com/web/"
       and (
         string.match(newurl, "^https?://error%.")
         or string.match(newurl, "^https?://[^/]+/error")
@@ -532,7 +533,7 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
     io.stdout:write("Server returned bad response. ")
     io.stdout:flush()
     tries = tries + 1
-    local maxtries = 7
+    local maxtries = 4
     if status_code == 301 or status_code == 302 then
       tries = maxtries + 1
     end
@@ -564,6 +565,7 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
   if status_code >= 300 and status_code <= 399 then
     local newloc = urlparse.absolute(url["url"], http_stat["newloc"])
     if newloc ~= "http://error.fc2.com/web/404.html"
+      and newloc ~= "http://error.fc2.com/web/"
       and (
         string.match(newloc, "^https?://error%.")
         or string.match(newloc, "^https?://[^/]+/error")
