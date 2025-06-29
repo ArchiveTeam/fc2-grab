@@ -508,8 +508,11 @@ wget.callbacks.write_to_warc = function(url, http_stat)
   if http_stat["statcode"] == 301
     or http_stat["statcode"] == 302 then
     local newurl = urlparse.absolute(url["url"], http_stat["newloc"])
-    if string.match(newurl, "^https?://error%.")
-      or string.match(newurl, "^https?://[^/]+/error") then
+    if newurl ~= "http://error.fc2.com/web/404.html"
+      and (
+        string.match(newurl, "^https?://error%.")
+        or string.match(newurl, "^https?://[^/]+/error")
+      ) then
       retry_url = true
       return false
     end
@@ -594,8 +597,11 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
 
   if status_code >= 300 and status_code <= 399 then
     local newloc = urlparse.absolute(url["url"], http_stat["newloc"])
-    if string.match(newloc, "^https?://error%.")
-      or string.match(newloc, "^https?://[^/]+/error") then
+    if newloc ~= "http://error.fc2.com/web/404.html"
+      and (
+        string.match(newloc, "^https?://error%.")
+        or string.match(newloc, "^https?://[^/]+/error")
+      ) then
       error("Unexpected error redirect found.")
     end
     if not allowed(newloc, url["url"]) then
