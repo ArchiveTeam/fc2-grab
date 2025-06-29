@@ -455,7 +455,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
     and not string.match(url, "%.[jJ][pP][eE]?[gG]$")
     and not string.match(url, "%.[pP][nN][gG]$")
     and not string.match(url, "%.[gG][iI][fF]$")
-    and not string.match(url, "%.[iI][cC][oo}$") then
+    and not string.match(url, "%.[iI][cC][oO]$") then
     html = read_file(file)
     if string.match(url, "^https?://[^/]+/robots%.txt$") then
       for line in string.gmatch(html, "([^\n]+)") do
